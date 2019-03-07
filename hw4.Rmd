@@ -1,0 +1,100 @@
+---
+title: "hw4"
+author: "Connor Hergenreter"
+date: "March 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Homework #4
+
+##Attaching packages
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+##Question 1
+
+Information based on diet can be shown using summarize(). This returns a tibble with the number of feedings per diet, mean chick weight on diet, and standard deviation of weight on diet.
+
+```{r}
+weight0 <- ChickWeight %>% group_by(Diet) %>% summarize(Occurrences =n(), Mean_Weight=mean(weight, na.rm=TRUE), Weight_Std_Dev=sd(weight, na.rm=TRUE))
+print(weight0)
+```
+
+##Question 2
+
+The following block only adds a column that displays the total number of feedings per chick. If the number is not equal to 12, then those rows are dropped. There are 45 chicks with 12 recordings.
+
+```{r}
+complete <- ChickWeight %>% group_by(Chick) %>% mutate(Num_Feed=n()) %>% filter(Num_Feed==12) %>% select(-Num_Feed)
+
+print(tbl_df(complete), n=3)
+```
+
+##Question 3
+
+The weight gain column is added by adding a column that records the difference between current weight and previous weight. Now the weight gain column can be created by making a running total of weight gain.
+
+```{r}
+complete <- complete %>% group_by(Chick) %>%  mutate(differ=(weight - lag(weight, default=weight[1])), weightgain=cumsum(differ)) %>% select(-differ)
+
+print(tbl_df(complete), n=3)
+```
+
+##Question 4
+
+Using the following boxplots it appears that chicks on diet 1 gained the least weight on average while chicks on diet 3 gained the most. Weight gain varied the most with diet 2 and the least with diet 4.
+
+```{r}
+compbox <- complete %>% filter(Time==21)
+
+ggplot(compbox, aes(x=reorder(Diet, weightgain, FUN=median), y=weightgain, color=Diet)) + geom_boxplot() + coord_cartesian(ylim=c(0,350)) + labs(title="Weight Gain by Diet", x="Diet", y="Weight Gain") + theme(plot.title=element_text(hjust=0.5))
+```
+
+##Question 5
+
+The following table and graph show that chick 24 gained the least while chick 35 gained the most. Chick 24 was on diet #2 and chick 35 was on diet #3.
+
+```{r}
+compsum <- complete %>% group_by(Chick, Diet) %>% summarize(Total_Gain=max(weightgain)) %>% arrange(Total_Gain)
+
+print(tbl_df(compsum), n=45)
+
+ggplot(compsum, aes(x=reorder(Chick, -Total_Gain), y=Total_Gain, fill=Diet)) + geom_bar(stat="identity") + coord_flip() + labs(title="Total Weight Gain Per Chick",x="Chick",y="Total Weight Gain") + theme(plot.title=element_text(hjust=0.5))
+```
+
+##Question 6
+
+The following graph shows the growth of the smallest (27) and largest (3) chicks. Chick 27 does appear to be growing at a faster rate than 3. Chick 27 is on diet 2 and chick 3 is on diet 1.
+
+
+```{r}
+firstdate <- complete %>% filter(Time==0) %>% arrange(weight)
+smallchick <- firstdate$Chick[which.min(firstdate$weight)]
+bigchick <- firstdate$Chick[which.max(firstdate$weight)]
+scatterchick <- complete %>% filter(Chick==smallchick | Chick==bigchick)
+
+ggplot(scatterchick, aes(x=Time, y=weight, shape=Diet, color=Chick)) + geom_point(size=4) + geom_smooth(method=lm, se=FALSE, fullrange=TRUE) + labs(title="Weight Gain of Smallest and Largest Chicks Over Time",y="Weight") + theme(plot.title=element_text(hjust=0.5))
+```
+
+##Question 7
+
+After seeing the boxplots from question 4 I wanted to check out how the scatterplot for the diets looked. Diet 2 looks really interesting in my opinion. It appears that some chickens did not take to the diet very well while others did very well on it. The plot was good to see how much weight varied in diet 2. Diet 4 is very tightly clustered in comparison to the other diets, just as how the boxplots displayed it.
+
+```{r}
+ggplot(complete, aes(x=Time, y=weight)) + geom_point() + facet_wrap(~Diet) + geom_smooth(method=lm, se=FALSE, fullrange=TRUE) + labs(title="Weight Over Time by Diet", y="Weight") + theme(plot.title=element_text(hjust=0.5))
+```
+
+Since diet 1 has the lowest median weight gain and diet 3 has the highest, I wanted to look at their total gain over time. The graph shows that 1 has more linear growth than 3. Diet 3 appears to be exponential.
+
+```{r}
+comparisoncomp <- complete %>% filter(Diet==1 | Diet==3)
+
+ggplot(comparisoncomp, aes(x=Time, y=weightgain)) + geom_bar(stat="identity") + facet_grid(~Diet) + labs(title="Total Weight Gain Over Time For Diets 1 and 3", y="Weight Gain") + theme(plot.title=element_text(hjust=0.5))
+```
